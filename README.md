@@ -18,7 +18,7 @@
 
 | 动作 | 结果 |
 |---|---|
-| 建中转链接 | `~/.wtool/links/terminal/fzf` → 本仓库 |
+| 建中转链接 | `~/.wtool/wtool-work-dir/links/terminal/fzf` → 本仓库 |
 | 注入 `~/.zshrc` | 块 source `env.zsh`：把 `bin/` 加入 PATH，source `fzf.zsh` |
 | 注入 `~/.bashrc` | 块 source `env.bash`：把 `bin/` 加入 PATH，source `fzf.bash` |
 
