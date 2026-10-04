@@ -7,7 +7,7 @@
 -->
 <wtool schema="1" id="terminal/fzf" priority="60">
 
-  <env src="env.zsh"  shells="zsh"  priority="60"/>
-  <env src="env.bash" shells="bash" priority="60"/>
+  <zshrc  src="env.zsh"  priority="60"/>
+  <bashrc src="env.bash" priority="60"/>
 
 </wtool>
