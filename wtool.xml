@@ -5,7 +5,7 @@
   演示"多 shell"：zsh 与 bash 各有一份 env，框架会分别注入 ~/.zshrc 与 ~/.bashrc。
   priority=60，在 tools/repo(40) / terminal/tmux(50) 之后加载。
 -->
-<wtool schema="1" id="terminal/fzf" priority="60">
+<wtool schema="1" priority="60">
 
   <zshrc  src="env.zsh"  priority="60"/>
   <bashrc src="env.bash" priority="60"/>
