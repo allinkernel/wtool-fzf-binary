@@ -39,8 +39,12 @@
 - **`bin/fzf` 是入库的二进制**（历史遗留，约 4.4 MB），换它必须同时换同一版本的
   `fzf.zsh` / `fzf.bash`，并在 README 里写清版本号（版本号用 `./bin/fzf --version` 读出来，
   别按文件名猜）。
-- `wtool.xml` 里 id `terminal/fzf` 是契约（中转链接路径、rc 块名都用它）；
-  `priority=60` 要排在 `tools/git-repo-sh-tools`(40) / `terminal/tmux`(50) 之后。
+- `wtool.xml` 里**没有 `id=` 属性**：项目身份就是它在工作区里的路径 `terminal/fzf`
+  （ADR-0037，写了 `id=` 引擎会硬报错）—— 中转链接路径
+  `~/.wtool/wtool-work-dir/links/terminal/fzf`、rc 块名（`# >>> wtool:terminal/fzf`）
+  都用这个路径；`priority=60` 要排在 `tools/git-repo-sh-tools`(40) / `terminal/tmux`(50) 之后。
+- **装 / 测只在容器里做**：本机（WSL）是临时的手工环境，wtool 调通之前不在本地落地；
+  真机上 `wtool install terminal/fzf` **必须由用户明确同意**（用户级 `~/.dsh/AGENTS.md` 的硬规矩）。
 - 别在 env 文件里**替用户设 `FZF_*` 默认值** —— 现在的约定是"env 只加 PATH + source 脚本，
   可调项留给用户"。
 
@@ -51,6 +55,8 @@
 最低限度：
 
 ```sh
+zsh  -n env.zsh && zsh  -n fzf.zsh            # 语法
+bash -n env.bash && bash -n fzf.bash
 ./bin/fzf --version
 file bin/fzf                                  # 确认还是 x86-64 静态二进制
 zsh -ic 'WTOOL_PROJECT_DIR=$PWD; source env.zsh; whence -p fzf'

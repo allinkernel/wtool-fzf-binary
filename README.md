@@ -7,7 +7,8 @@
 **本项目是"多 shell"的例子**：`wtool.xml` 里一个 `<zshrc>` + 一个 `<bashrc>`，
 框架分别往 `~/.zshrc` 和 `~/.bashrc` 注入对应的受管块。
 
-- 项目 id：`terminal/fzf`，`priority=60`（在 `tools/git-repo-sh-tools`(40) / `terminal/tmux`(50) 之后加载）
+- 项目路径（**路径就是它的身份**，没有单独的 `id`，见 ADR-0037）：`terminal/fzf`，
+  `priority=60`（在 `tools/git-repo-sh-tools`(40) / `terminal/tmux`(50) 之后加载）
 - 本仓库没有 `scripts/`（不需要构建/安装脚本），也没有测试
 
 ---
@@ -32,7 +33,7 @@
 
 | 键 | widget（zsh） / 函数（bash） | 做什么 |
 |---|---|---|
-| `Ctrl-T` | `fzf-file-widget` | 在当前目录树里选文件/目录，把选中项的路径**贴到命令行**（可多选） |
+| `Ctrl-T` | `fzf-file-widget`（zsh）；bash 也是 `fzf-file-widget` —— 但 bash < 4 走的是宏里的 `` `__fzf_select__` `` | 在当前目录树里选文件/目录，把选中项的路径**贴到命令行**（可多选） |
 | `Ctrl-R` | `fzf-history-widget`（zsh）/ `__fzf_history__`（bash） | 在命令历史里搜索，选中项贴到命令行 |
 | `Alt-C` | `fzf-cd-widget`（zsh）/ `__fzf_cd__`（bash） | 选一个目录并 `cd` 过去 |
 
@@ -50,15 +51,19 @@
   例：`vim **<Tab>`、`cd **<Tab>`、`kill **<Tab>`、`ssh **<Tab>`。
 - **zsh**：`fzf-completion` 接管 Tab（`bindkey '^I' fzf-completion`），
   认得出命令名时走专用补全：
-  `ssh` / `telnet`（主机名，来自 `~/.ssh/config`、`~/.ssh/config.d/*`、`~/.ssh/known_hosts`、`/etc/hosts`）、
+  `ssh` / `telnet`（主机名，来自 `~/.ssh/config`、`~/.ssh/config.d/*`、`/etc/ssh/ssh_config`、`~/.ssh/known_hosts`、`/etc/hosts` ——
+  判据：`grep -n 'ssh/config\|known_hosts\|/etc/hosts' fzf.zsh`）、
   `export` / `unset` / `unalias`、`kill`（进程表，表头可点）；
   其余走路径补全，目录类命令（默认 `cd pushd rmdir`，见 `FZF_COMPLETION_DIR_COMMANDS`）走目录补全。
 - **bash**：装了 bash-completion 时，上面这些命令**不打 `**`** 也能直接进 fzf；
   `**` 触发串同样支持。它还预置了一批命令的路径补全
   （`FZF_COMPLETION_PATH_COMMANDS` / `FZF_COMPLETION_VAR_COMMANDS`，
-  例如 `ls` / `cat` / `vim` / `git` / `grep` / `ssh` …；变量类 `export` / `unset` / `printenv`），
-  并给 `fzf` / `fzf-tmux` 自己做了选项补全（`complete -o default -F _fzf_opts_completion fzf`）。
+  例如 `ls` / `cat` / `vim` / `git` / `grep` …；变量类 `export` / `unset` / `printenv`），
+  并给 `fzf` / `fzf-tmux` 自己做了选项补全
+  （`complete -o default -F _fzf_opts_completion fzf`，`fzf-tmux` 同一行形式）。
   > 这两个 `*_COMMANDS` 变量**只在 bash 版里有**，zsh 版没有。
+  > `ssh` **不在**那份预置名单里 —— 它和 `unalias` / `kill` 一样有自己的补全函数
+  > （`__fzf_defc ssh _fzf_complete_ssh ...`）。
 - 原有的 bash 补全不会被顶掉：脚本会先记下旧补全，再在它外面套一层 fzf。
 
 ### 4. 在 tmux 里
@@ -75,7 +80,11 @@
 
 安装由 wtool 统一管：见 [wtool 的 README（GitHub：allinkernel/wtool）](https://github.com/allinkernel/wtool/blob/main/README.md) ——
 本仓库只是源码/配置（一个二进制 + 两个官方脚本 + 两个 env），
-装的时候是 `wtool install terminal/fzf`（项目 id 就是它在清单里的 path）。
+装的时候是 `wtool install terminal/fzf`（**项目路径就是它的身份** —— 没有单独的 id，见 ADR-0037）。
+
+> ⚠️ **wtool 的项目只在容器里装 / 测**（用户级规矩，2026-10-04）：本机（WSL）是临时
+> 的手工环境，wtool 彻底调通之前**不在本地落地**。要在容器里验证就 `--network=host`
+> 挂工作区；**真机上装本项目必须由用户明确同意**，助手不得自行 `wtool install`。
 
 ## 配置项
 
@@ -141,6 +150,11 @@ mawk 够新就用 mawk）、`fzf_default_completion`（记下接管前的 Tab �
 这个项目从 mytool 迁过来时就没带）。所以改完只能人工核对，最低限度：
 
 ```sh
+# 0. 语法（四个文件都过一遍；sh -n 不等于"能跑"，它查不出三元运算符那类 bashism）
+zsh  -n env.zsh && zsh  -n fzf.zsh      # zsh 版
+bash -n env.bash && bash -n fzf.bash    # bash 版
+
+# 1. 二进制本身
 ./bin/fzf --version            # 期望：0.67.0 (2ab923f3)
 file bin/fzf                   # 期望：ELF 64-bit LSB executable, x86-64, statically linked
 
