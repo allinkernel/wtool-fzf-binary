@@ -40,7 +40,7 @@
   `fzf.zsh` / `fzf.bash`，并在 README 里写清版本号（版本号用 `./bin/fzf --version` 读出来，
   别按文件名猜）。
 - `wtool.xml` 里 id `terminal/fzf` 是契约（中转链接路径、rc 块名都用它）；
-  `priority=60` 要排在 `tools/repo`(40) / `terminal/tmux`(50) 之后。
+  `priority=60` 要排在 `tools/git-repo-sh-tools`(40) / `terminal/tmux`(50) 之后。
 - 别在 env 文件里**替用户设 `FZF_*` 默认值** —— 现在的约定是"env 只加 PATH + source 脚本，
   可调项留给用户"。
 

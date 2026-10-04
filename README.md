@@ -7,7 +7,7 @@
 **本项目是"多 shell"的例子**：`wtool.xml` 里一个 `<zshrc>` + 一个 `<bashrc>`，
 框架分别往 `~/.zshrc` 和 `~/.bashrc` 注入对应的受管块。
 
-- 项目 id：`terminal/fzf`，`priority=60`（在 `tools/repo`(40) / `terminal/tmux`(50) 之后加载）
+- 项目 id：`terminal/fzf`，`priority=60`（在 `tools/git-repo-sh-tools`(40) / `terminal/tmux`(50) 之后加载）
 - 本仓库没有 `scripts/`（不需要构建/安装脚本），也没有测试
 
 ---
