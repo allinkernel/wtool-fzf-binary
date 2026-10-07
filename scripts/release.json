@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "project": "terminal/fzf",
+  "repo": "allinkernel/wtool-fzf-binary",
+  "tag": "ds_dev-2026-10-07",
+  "base_url": "https://github.com/allinkernel/wtool-fzf-binary/releases/download/ds_dev-2026-10-07",
+  "commit": "af5facbfd01d16ab4221dbd88adb9910847d2ba1",
+  "packed_at": "2026-10-08T01:05:14+0800",
+  "published_at": "2026-10-08T01:08:05+08:00",
+  "wtool_engine": "1.0.0",
+  "dirty": false,
+  "volume_size": "32M",
+  "declare": [
+    "wtool.xml",
+    "env.zsh",
+    "env.bash"
+  ],
+  "targets": [],
+  "assets": [
+    {
+      "name": "dist.json",
+      "role": "",
+      "bytes": 929,
+      "sha256": "9945e0f2ce8064abc75948c0eda73245c62ddb964f98a7821774fb4046839205"
+    },
+    {
+      "name": "release-hash.txt",
+      "role": "",
+      "bytes": 78,
+      "sha256": "ee0bd034db489468deeb6abd954c872c2038224a68a7871aca40ebde7f9931d9"
+    },
+    {
+      "name": "release.zip",
+      "role": "release",
+      "bytes": 1187,
+      "sha256": "d6ed68b6ca001edf0a2ebf9e44c22ce59d55e51999d9aade814ed590673dd59a"
+    },
+    {
+      "name": "源码-hash.txt",
+      "role": "",
+      "bytes": 77,
+      "sha256": "791f7e64b3c11ab5ab7efd653c7562f66465e94ebe6f336e30a5b1c36f626354"
+    },
+    {
+      "name": "源码.zip",
+      "role": "source",
+      "bytes": 1804213,
+      "sha256": "d9a1ba989b57c3d8fae4eb42e34defde41960eebf8042a9639d850332a5b8cd4"
+    }
+  ],
+  "how": "wtool download-release terminal/fzf   # 下到项目的 __release/（按本文件的 sha256 校验）\nwtool unpack-release terminal/fzf     # 拼分卷 + 解到 __output/\nwtool install terminal/fzf            # 装到本机"
+}
