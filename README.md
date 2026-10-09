@@ -9,7 +9,7 @@
 
 - 项目路径（**路径就是它的身份**，没有单独的 `id`，见 ADR-0037）：`terminal/fzf`，
   `priority=60`（在 `tools/git-repo-sh-tools`(40) / `terminal/tmux`(50) 之后加载）
-- 本仓库没有 `scripts/`（不需要构建/安装脚本），也没有测试
+- 本仓库没有 `scripts/`（不需要构建/安装脚本）；测试在 `tests/env_test.sh`
 
 ---
 
@@ -28,6 +28,14 @@
   「配置项」里，由你自己设。
 - `bin/fzf` 是**静态链接的 x86-64 Linux 可执行文件**（`file` 说的），版本
   **0.67.0 (2ab923f3)**（`./bin/fzf --version` 说的）。
+
+**zsh 侧还有一件事**：`fzf.zsh` 会先把当前**全部 zsh 选项**存成一份快照
+（`__fzf_key_bindings_options` / `__fzf_completion_options`），文件末尾再 `eval` 回来 ——
+因为中间那句 `emulate zsh` 会把选项重置成 zsh 默认值，不还原的话你 `~/.zshrc` 里的
+`setopt` 就白设了。**没有终端时快照里不含 `zle`**：zsh 不允许在没有终端的 shell 里改这个
+选项（`setopt zle` 直接报 `can't change option: zle`），而它没有行编辑器时也没有意义。
+这一处是本仓库相对上游 `fzf.zsh` 的**有意改动**，`tests/env_test.sh` 钉着它 ——
+详见「排错」最后一行和「测试」。
 
 ### 2. 三个快捷键（两个 shell 都有）
 
@@ -143,11 +151,28 @@ mawk 够新就用 mawk）、`fzf_default_completion`（记下接管前的 Tab �
 | `fzf: cannot execute binary file` / 段错误 | `bin/fzf` 是 **x86-64 Linux 静态二进制**；ARM 机器 / macOS 上跑不了，得换对应架构的 |
 | `fzf --version` 不是 0.67.0 | `PATH` 里排在前面的是别处装的 fzf；本项目的 `bin/` 是**插在最前面**的，`type -a fzf` 看谁在前面 |
 | 补全候选里没有隐藏文件 / 范围不对 | 补全默认带 `--walker=file,dir,follow,hidden`；想换候选就覆盖 `_fzf_compgen_path` / `_fzf_compgen_dir`（zsh）或用 `FZF_COMPLETION_PATH_OPTS` / `FZF_COMPLETION_DIR_OPTS` |
+| 启动时打两行 `(eval):1: can't change option: zle` | **2026-10-09 已修，不该再出现**（没有 tty 时：`env -i HOME=$HOME zsh -lic 'echo ok'`，或在没有终端的 CI / `docker run` 里开交互式 zsh）。原因：`fzf.zsh` 恢复选项快照时连 `zle` 一起 `setopt` 回去，而 zsh 不允许没有终端的 shell 改这个选项。修法是**没有终端时（`$TTY` 为空）把 `zle` 从快照里去掉**，有终端时行为一个字不变。**如果又冒出来**：多半是 `fzf.zsh` 被整份换成了上游新版本（上游这份文件没有这个补丁），把两处快照恢复按上面的说明补回来，或直接跑 `bash tests/env_test.sh` 看是不是它红了 |
 
 ## 测试
 
-**本仓库没有测试** —— `git ls-files` 里没有 `tests/`（工作区其它项目多数有，
-这个项目从 mytool 迁过来时就没带）。所以改完只能人工核对，最低限度：
+**有测试**：`tests/env_test.sh`（7 条）。本仓库以前没有 `tests/`（这套是 2026-10-09
+补的），改任何东西先跑它：
+
+```sh
+bash tests/env_test.sh          # 期望：7 通过, 0 失败
+```
+
+测的是：① 两个 env 都把本仓库的 `bin/` 放进 `PATH`、`fzf` 解析到本仓库；
+② **真 tty** 下 `^R` / `^I` / `^T` 的绑定、`fzf-*` widget、bash 侧 `bind -X` 与补全都还在；
+③ **无 tty** 的交互式 zsh 里 source **不许**打印 `can't change option: zle`，
+且选项快照仍逐项还原（source 前后 `set -o` 相同）。
+
+> "无 tty"是这么造的：`setsid` 开一个新会话 —— 新会话**没有控制终端**，zsh 的 `$TTY`
+> 因此为空，`setopt zle` 会被拒（zsh 5.9 实测）。**只把 stdin/stdout 重定向到文件是不够的**：
+> 在终端里跑时进程仍有 ctty（`$TTY=/dev/tty`），不会复现。探针自己会打印
+> `MARK_TTY=[...]`，只有它是空的，那两条断言才算数；造不出来时打印"跳过"，不假装通过。
+
+改完还要人工核对的（测试不覆盖按键真的能用）：
 
 ```sh
 # 0. 语法（四个文件都过一遍；sh -n 不等于"能跑"，它查不出三元运算符那类 bashism）
@@ -169,11 +194,15 @@ bash -ic 'WTOOL_PROJECT_DIR=$PWD; . env.bash; type -p fzf; type -t fzf-file-widg
 
 > `WTOOL_PROJECT_DIR=$PWD` 是**故意**写上的：这台机器上 shell 启动时可能已经带着
 > 别的项目的 `WTOOL_PROJECT_DIR`（旧安装留下的），不钉住的话 `type fzf` 测的就不是本仓库。
-> 这些命令**这次都跑过**：`bin/fzf` 两个 shell 里都解析到本仓库的 `bin/fzf`，
+> 这些命令**都跑过**：`bin/fzf` 两个 shell 里都解析到本仓库的 `bin/fzf`，
 > `fzf-file-widget` 在，bash 侧 `"\C-r"` / `"\C-t"` / `"\ec"` 三个键都能查到。
 > 但这不等于"按键真的能用" —— 那要人在交互式终端里按一次才算。
-> 另外，没有 tty 的环境里跑 `zsh -ic` 会看到几行 `can't change option: zle`：
-> 那是 `zle -N` 在无 tty 时失败了（本机验证环境的现象），不是配置错。
+>
+> **订正（2026-10-09）**：这里原来写"没有 tty 时那几行 `can't change option: zle` 是
+> `zle -N` 在无 tty 时失败了"—— **那个归因是错的**。实测 `zle -N` / `bindkey` 在没有 tty 时
+> 都安静返回 0（`setsid zsh -f -ic 'zle -N w; echo rc=$?'` → `rc=0`），出声的是
+> `fzf.zsh` 末尾 `eval` 选项快照那一步（`setsid zsh -f -ic 'options=(zle on)'` →
+> `can't change option: zle`）。以本条为准。
 
 ## 与 mytool 版本的差异
 
@@ -190,8 +219,9 @@ bash -ic 'WTOOL_PROJECT_DIR=$PWD; . env.bash; type -p fzf; type -t fzf-file-widg
 | `wtool.xml` | 清单：1 个 `<zshrc>` + 1 个 `<bashrc>`（无 link） |
 | `env.zsh` / `env.bash` | 各自的 PATH + 补全脚本 source |
 | `bin/fzf` | fzf 0.67.0 的静态 x86-64 二进制（4.4 MB） |
-| `fzf.zsh` | 官方 `key-bindings.zsh` + `completion.zsh` 拼在一起，由 `env.zsh` source |
+| `fzf.zsh` | 官方 `key-bindings.zsh` + `completion.zsh` 拼在一起，由 `env.zsh` source；**含一处本仓库的补丁**（无 tty 时快照不含 `zle`，见「功能说明」§1） |
 | `fzf.bash` | 官方 `key-bindings.bash` + `completion.bash` 拼在一起，由 `env.bash` source |
+| `tests/env_test.sh` | 7 条：两个 env 的 PATH / 真 tty 下的键绑定与补全 / 无 tty 不许报 `zle` |
 
 ## 待改进（未做，保持行为不变）
 

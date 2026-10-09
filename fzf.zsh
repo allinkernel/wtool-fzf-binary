@@ -20,12 +20,32 @@
 # The code at the top and the bottom of this file is the same as in completion.zsh.
 # Refer to that file for explanation.
 if 'zmodload' 'zsh/parameter' 2>'/dev/null' && (( ${+options} )); then
-  __fzf_key_bindings_options="options=(${(j: :)${(kv)options[@]}})"
+  # zsh refuses to change the `zle` option in a shell that has no terminal, so
+  # restoring a snapshot that contains it prints "can't change option: zle" --
+  # two such lines per shell startup (here on `zsh -lic` without a tty, and
+  # again in completion.zsh).  The option is meaningless without a line editor,
+  # so leave it out of the snapshot in that case.  $TTY is zsh's own record of
+  # the terminal it is attached to; it is empty exactly when zsh refuses to
+  # change `zle` (measured on zsh 5.9).
+  () {
+    'local' '__fzf_opt' '__fzf_opts'
+    for __fzf_opt in "${(@k)options[@]}"; do
+      if [[ $__fzf_opt == zle && -z ${TTY-} ]]; then
+        continue
+      fi
+      __fzf_opts+=" $__fzf_opt ${options[$__fzf_opt]}"
+    done
+    __fzf_key_bindings_options="options=(${__fzf_opts# })"
+  }
 else
   () {
     __fzf_key_bindings_options="setopt"
     'local' '__fzf_opt'
     for __fzf_opt in "${(@)${(@f)$(set -o)}%% *}"; do
+      # Same as above: `zle` can only be changed when there is a terminal.
+      if [[ $__fzf_opt == zle && -z ${TTY-} ]]; then
+        continue
+      fi
       if [[ -o "$__fzf_opt" ]]; then
         __fzf_key_bindings_options+=" -o $__fzf_opt"
       else
@@ -199,13 +219,32 @@ fi
 # Start by loading the builtin zsh/parameter module. It provides `options`
 # associative array that stores current shell options.
 if 'zmodload' 'zsh/parameter' 2>'/dev/null' && (( ${+options} )); then
-  # This is the fast branch and it gets taken on virtually all Zsh installations.
+  # This is the fast branch (it doesn't fork) and it gets taken on virtually all
+  # Zsh installations.
   #
-  # ${(kv)options[@]} expands to array of keys (option names) and values ("on"
-  # or "off"). The subsequent expansion# with (j: :) flag joins all elements
-  # together separated by spaces. __fzf_completion_options ends up with a value
-  # like this: "options=(shwordsplit off aliases on ...)".
-  __fzf_completion_options="options=(${(j: :)${(kv)options[@]}})"
+  # The branch walks the keys of the `options` associative array (provided by
+  # zsh/parameter) and joins each name with its value ("on" or "off"), so that
+  # __fzf_completion_options ends up with a value like this:
+  # "options=(shwordsplit off aliases on ...)".  Walking the names one by one
+  # (rather than the upstream one-liner, `options=(${(j: :)${(kv)options[@]}})`)
+  # is what makes it possible to leave a single option out:
+  #
+  # `zle` is dropped from the snapshot when the shell has no terminal: zsh
+  # refuses to change that option there ("can't change option: zle"), and it
+  # means nothing without a line editor.  $TTY is empty exactly when zsh
+  # refuses to change `zle` (measured on zsh 5.9).  With a terminal the result
+  # is byte-for-byte what the upstream one-liner produced.
+  () {
+    'local' '__fzf_opt' '__fzf_opts'
+    for __fzf_opt in "${(@k)options[@]}"; do
+      # `zle` can only be changed when there is a terminal (see above).
+      if [[ $__fzf_opt == zle && -z ${TTY-} ]]; then
+        continue
+      fi
+      __fzf_opts+=" $__fzf_opt ${options[$__fzf_opt]}"
+    done
+    __fzf_completion_options="options=(${__fzf_opts# })"
+  }
 else
   # This branch is much slower because it forks to get the names of all
   # zsh options. It's possible to eliminate this fork but it's not worth the
@@ -222,6 +261,10 @@ else
     # removes spaces and everything that follow them on every line. __fzf_opt
     # ends up iterating over option names: shwordsplit, aliases, etc.
     for __fzf_opt in "${(@)${(@f)$(set -o)}%% *}"; do
+      # Same as above: `zle` can only be changed when there is a terminal.
+      if [[ $__fzf_opt == zle && -z ${TTY-} ]]; then
+        continue
+      fi
       if [[ -o "$__fzf_opt" ]]; then
         # Option $__fzf_opt is currently on, so remember to set it back on.
         __fzf_completion_options+=" -o $__fzf_opt"

@@ -21,7 +21,7 @@
   | 配置项 | 读哪些 `FZF_*` 变量、默认值、哪些只有 bash 版认 |
   | 快捷键 | 每个键绑在哪、什么条件下才绑、怎么单独关掉 |
   | 排错 | 现象 → 原因 → 怎么办（报错原文要抄对） |
-  | 测试 | 本仓库没有测试，给人工冒烟命令 |
+  | 测试 | `bash tests/env_test.sh`（7 条）+ 按键真能用那部分只能人工按 |
   | 文件 | 每个文件一句话 |
   | 待改进 | 已知的、故意没做的事（二进制入库、`fzf-tmux` 缺失……） |
 
@@ -36,6 +36,12 @@
 - `fzf.zsh` / `fzf.bash` 是**上游 fzf 的生成物**（`key-bindings.*` + `completion.*` 拼在一起，
   里面还留着 "Do not directly edit this section" 的注释）。要改就**整份换成同一个 fzf
   版本的上游文件**，别手改中间那几段。
+  **唯一的例外（一处本仓库补丁，2026-10-09）**：`fzf.zsh` 里那两段"存选项快照 / 恢复选项
+  快照"（`__fzf_key_bindings_options`、`__fzf_completion_options`）在**没有终端**（`$TTY`
+  为空）时把 `zle` 剔出快照 —— 上游没这个处理，照原样 `eval` 回去会打两行
+  `(eval):1: can't change option: zle`（zsh 不许没有终端的 shell 改 `zle`）。
+  **整份换上游文件时必须把这个补丁补回去**，否则 `bash tests/env_test.sh` 会红
+  （README「排错」最后一行、「功能说明」§1 有说明）。
 - **`bin/fzf` 是入库的二进制**（历史遗留，约 4.4 MB），换它必须同时换同一版本的
   `fzf.zsh` / `fzf.bash`，并在 README 里写清版本号（版本号用 `./bin/fzf --version` 读出来，
   别按文件名猜）。
@@ -50,11 +56,12 @@
 
 ## 3. 验证（改完必须做）
 
-本仓库**没有测试**（没有 `tests/`），只能人工冒烟；README「测试」一节里那几条命令
-要照着跑一遍，确认 `bin/fzf` 解析到本仓库、widget 定义存在、三个键在 bash 里能查到。
-最低限度：
+本仓库**有测试**（2026-10-09 补的）：`bash tests/env_test.sh` → **7 条**。
+改动后先跑它，再照 README「测试」一节人工冒烟（确认 `bin/fzf` 解析到本仓库、
+widget 定义存在、三个键在 bash 里能查到）。最低限度：
 
 ```sh
+bash tests/env_test.sh                        # 7 条，应全绿
 zsh  -n env.zsh && zsh  -n fzf.zsh            # 语法
 bash -n env.bash && bash -n fzf.bash
 ./bin/fzf --version
@@ -65,5 +72,8 @@ bash -ic 'WTOOL_PROJECT_DIR=$PWD; . env.bash; bind -X | grep -i fzf'
 
 - 冒烟命令里**要钉住 `WTOOL_PROJECT_DIR`**：机器上可能残留别的项目的值，
   不钉住测的就不是本仓库。
-- 没有 tty 时 `zsh -ic` 会打印 `can't change option: zle`，那是环境现象，不是配置错。
+- 没有 tty 时 `zsh -ic` **曾经**会打印两行 `can't change option: zle` —— 那是
+  `fzf.zsh` 恢复选项快照时碰了 `zle`，**2026-10-09 已修**（`tests/env_test.sh` 里
+  "无 tty"那两条钉着它）。**"无 tty"要用 `setsid` 造**：只重定向 stdin/stdout 不够，
+  在终端里跑时进程仍有 ctty（`$TTY=/dev/tty`）、不会复现 —— 详见 README「测试」。
 - 提交只提交到 `ds_dev`，`git add` 之前先 `git diff` 看一遍；不 push、不动 `main`。
